@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تتبع المصاريف</title>
+  <meta name="description" content="Simple static expense tracker for daily and monthly spending.">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div>
+        <h1>تتبع المصاريف</h1>
+        <p>كتب مصاريف النهار أو الشهر كامل، والتطبيق يحسب لك المصاريف، المداخيل، والميزانية.</p>
+      </div>
+    </header>
+
+    <section class="summary">
+      <div class="stat">
+        <span>مجموع اليوم</span>
+        <strong id="dayTotal">0 درهم</strong>
+      </div>
+      <div class="stat">
+        <span>مجموع الشهر</span>
+        <strong id="monthTotal">0 درهم</strong>
+      </div>
+      <div class="stat">
+        <span>الباقي من الميزانية</span>
+        <strong id="budgetLeft">0 درهم</strong>
+      </div>
+    </section>
+
+    <section id="budgetAlert" class="alert hidden"></section>
+
+    <section class="panel">
+      <div class="grid">
+        <label>
+          التاريخ
+          <input type="date" id="expenseDate">
+        </label>
+
+        <label>
+          Budget الشهر
+          <input type="number" id="monthlyBudget" min="0" step="1" placeholder="مثال: 1500">
+        </label>
+      </div>
+
+      <label>
+        مصروف اليوم
+        <textarea id="expenseText" rows="8" placeholder="قهوة 10&#10;cafe 10&#10;breakfast 14&#10;lunch 15&#10;taxi 20&#10;مدخول 1000"></textarea>
+      </label>
+
+      <button id="addBtn" class="primary">Ajouter / Calculer</button>
+    </section>
+
+    <section class="panel">
+      <h2>Import mois complet</h2>
+
+      <label>
+        مصروف شهر كامل
+        <textarea id="monthExpenseText" rows="12" placeholder="01/06/2026&#10;قهوة 10&#10;فطور 14&#10;غداء 15&#10;&#10;02/06/2026&#10;طاكسي 20&#10;قهوة 10&#10;&#10;03/06/2026&#10;صحة 320&#10;دانون 5&#10;مدخول 1000"></textarea>
+      </label>
+
+      <button id="importMonthBtn" class="primary">Importer mois complet</button>
+    </section>
+
+    <section class="panel">
+      <h2>مجموع كل فئة</h2>
+
+      <div class="table-wrap compact">
+        <table>
+          <thead>
+            <tr>
+              <th>الفئة</th>
+              <th>المجموع MAD</th>
+            </tr>
+          </thead>
+          <tbody id="categoryTotalsTable"></tbody>
+        </table>
+      </div>
+
+      <div class="income-section">
+        <h3>المداخيل</h3>
+        <div class="table-wrap compact">
+          <table>
+            <thead>
+              <tr>
+                <th>الفئة</th>
+                <th>المجموع MAD</th>
+              </tr>
+            </thead>
+            <tbody id="incomeTotalsTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="report-summary">
+        <div class="stat">
+          <span>Total dépenses</span>
+          <strong id="totalExpensesReport">0 MAD</strong>
+        </div>
+        <div class="stat">
+          <span>Total revenus</span>
+          <strong id="totalIncomeReport">0 MAD</strong>
+        </div>
+        <div class="stat">
+          <span>Net</span>
+          <strong id="netReport">0 MAD</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <h2>المعاملات</h2>
+        <div class="actions">
+          <button id="exportCsvBtn" type="button">Export CSV</button>
+          <button id="exportJsonBtn" type="button">Export JSON backup</button>
+          <label class="import-btn">
+            Import JSON backup
+            <input type="file" id="importJsonInput" accept="application/json">
+          </label>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>Category</th>
+              <th>الوصف</th>
+              <th>المبلغ</th>
+              <th>حذف</th>
+            </tr>
+          </thead>
+          <tbody id="expensesTable"></tbody>
+        </table>
+      </div>
+
+      <p id="emptyState" class="empty">ما كاين حتى مصروف مسجل دابا.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
