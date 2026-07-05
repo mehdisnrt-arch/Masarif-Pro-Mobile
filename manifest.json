@@ -1,12 +1,22 @@
 {
-  "name": "تتبع المصاريف",
-  "short_name": "Masarif",
-  "description": "Simple static expense tracker for daily and monthly spending.",
-  "start_url": "./",
+  "name": "Masarif Pro Mobile",
+  "short_name": "Masarif Pro",
+  "description": "A professional local-first mobile expense tracker for iPhone.",
+  "start_url": "./index.html",
   "scope": "./",
-  "display": "browser",
-  "background_color": "#f4f7f6",
-  "theme_color": "#0f766e",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f6f1",
+  "theme_color": "#166A5B",
+  "lang": "ar-MA",
   "dir": "rtl",
-  "lang": "ar"
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23166A5B'/%3E%3Cpath d='M128 160h256v56H128zM128 244h196v48H128zM128 320h256v56H128z' fill='white'/%3E%3Ccircle cx='372' cy='268' r='32' fill='%23F3B13D'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

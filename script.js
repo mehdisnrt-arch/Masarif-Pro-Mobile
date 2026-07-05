@@ -1,627 +1,660 @@
-const categories = [
+/* Masarif Pro Mobile
+   A local-first expense tracker. All data is stored on the user's phone
+   with localStorage, so the first version does not need any backend. */
+
+const STORAGE_KEY = "masarifProMobile.v1";
+const CURRENCY = "MAD";
+const CATEGORIES = [
   "قهوة",
   "فطور",
   "غداء",
-  "حلوى",
-  "عصير",
-  "طاكسي",
-  "صحة",
-  "تحاليل",
-  "أدوية",
-  "صدقة",
+  "عشاء",
+  "أكل",
+  "دواء",
+  "طبيب",
   "سكانير",
-  "نظافة",
-  "دانون",
-  "علكة",
-  "بيمو",
-  "بيرمي",
-  "مدخول",
+  "طاكسي",
+  "بنزين",
+  "كراء",
+  "صدقة",
+  "هدية",
   "أخرى"
 ];
+const INCOME_WORDS = ["مدخول", "دخل", "دخول", "income", "revenu", "revenue"];
 
-const categoryAliases = [
-  { category: "قهوة", aliases: ["قهوة", "cafe", "café", "coffee"] },
-  { category: "فطور", aliases: ["فطور", "petit dej", "petit-dej", "petit dejeuner", "breakfast"] },
-  { category: "غداء", aliases: ["غداء", "dejeuner", "déjeuner", "lunch"] },
-  { category: "طاكسي", aliases: ["طاكسي", "taxi"] },
-  { category: "حلوى", aliases: ["حلوى"] },
-  { category: "عصير", aliases: ["عصير"] },
-  { category: "صحة", aliases: ["صحة"] },
-  { category: "تحاليل", aliases: ["تحاليل"] },
-  { category: "أدوية", aliases: ["أدوية"] },
-  { category: "صدقة", aliases: ["صدقة"] },
-  { category: "سكانير", aliases: ["سكانير"] },
-  { category: "نظافة", aliases: ["نظافة"] },
-  { category: "دانون", aliases: ["دانون"] },
-  { category: "علكة", aliases: ["علكة"] },
-  { category: "بيمو", aliases: ["بيمو"] },
-  { category: "بيرمي", aliases: ["بيرمي"] },
-  { category: "مدخول", aliases: ["مدخول", "revenu", "income"] }
-];
+const state = loadState();
 
-const storageKey = "masarif_transactions_v1";
-const budgetKey = "masarif_monthly_budget_v1";
+const elements = {
+  screenTitle: document.querySelector("#screen-title"),
+  views: document.querySelectorAll(".view"),
+  navButtons: document.querySelectorAll(".nav-button"),
+  categoryInput: document.querySelector("#category-input"),
+  form: document.querySelector("#transaction-form"),
+  editId: document.querySelector("#edit-id"),
+  amountInput: document.querySelector("#amount-input"),
+  amountPreview: document.querySelector("#amount-preview"),
+  dateInput: document.querySelector("#date-input"),
+  noteInput: document.querySelector("#note-input"),
+  clearFormBtn: document.querySelector("#clear-form-btn"),
+  searchInput: document.querySelector("#search-input"),
+  budgetInput: document.querySelector("#budget-input"),
+  saveBudgetBtn: document.querySelector("#save-budget-btn"),
+  resetDataBtn: document.querySelector("#reset-data-btn"),
+  exportJsonBtn: document.querySelector("#export-json-btn"),
+  importJsonInput: document.querySelector("#import-json-input"),
+  exportCsvBtn: document.querySelector("#export-csv-btn"),
+  toast: document.querySelector("#toast")
+};
 
-cleanupOldOfflineCache();
+document.addEventListener("DOMContentLoaded", init);
 
-const dateInput = document.getElementById("expenseDate");
-const budgetInput = document.getElementById("monthlyBudget");
-const expenseText = document.getElementById("expenseText");
-const monthExpenseText = document.getElementById("monthExpenseText");
-const addBtn = document.getElementById("addBtn");
-const importMonthBtn = document.getElementById("importMonthBtn");
-const tableBody = document.getElementById("expensesTable");
-const emptyState = document.getElementById("emptyState");
-const dayTotalEl = document.getElementById("dayTotal");
-const monthTotalEl = document.getElementById("monthTotal");
-const budgetLeftEl = document.getElementById("budgetLeft");
-const budgetAlert = document.getElementById("budgetAlert");
-const categoryTotalsTable = document.getElementById("categoryTotalsTable");
-const incomeTotalsTable = document.getElementById("incomeTotalsTable");
-const totalExpensesReport = document.getElementById("totalExpensesReport");
-const totalIncomeReport = document.getElementById("totalIncomeReport");
-const netReport = document.getElementById("netReport");
-const exportCsvBtn = document.getElementById("exportCsvBtn");
-const exportJsonBtn = document.getElementById("exportJsonBtn");
-const importJsonInput = document.getElementById("importJsonInput");
-
-let transactions = loadTransactions();
-
-function todayDate() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now - offset).toISOString().slice(0, 10);
+function init() {
+  populateCategories();
+  elements.dateInput.value = todayISO();
+  elements.budgetInput.value = state.settings.monthlyBudget || "";
+  bindEvents();
+  render();
 }
 
-function formatMoney(amount) {
-  return `${amount.toFixed(2).replace(".00", "")} درهم`;
+function bindEvents() {
+  elements.navButtons.forEach((button) => {
+    button.addEventListener("click", () => showView(button.dataset.view, button.dataset.title));
+  });
+
+  elements.form.addEventListener("submit", saveTransaction);
+  elements.clearFormBtn.addEventListener("click", resetForm);
+  elements.amountInput.addEventListener("input", updateAmountPreview);
+  elements.searchInput.addEventListener("input", renderTransactions);
+  elements.saveBudgetBtn.addEventListener("click", saveBudget);
+  elements.resetDataBtn.addEventListener("click", resetAllData);
+  elements.exportJsonBtn.addEventListener("click", exportJson);
+  elements.importJsonInput.addEventListener("change", importJson);
+  elements.exportCsvBtn.addEventListener("click", exportCsv);
 }
 
-function formatNumber(amount) {
-  return amount.toFixed(2).replace(".00", "");
+function populateCategories() {
+  elements.categoryInput.innerHTML = CATEGORIES
+    .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+    .join("");
 }
 
-function formatMad(amount) {
-  return `${formatNumber(amount)} MAD`;
+function showView(viewId, title) {
+  elements.views.forEach((view) => view.classList.toggle("active", view.id === viewId));
+  elements.navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === viewId));
+  elements.screenTitle.textContent = title;
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function isIncome(transaction) {
-  return transaction.category === "مدخول";
-}
+function saveTransaction(event) {
+  event.preventDefault();
 
-function createId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
+  let parsed;
+  try {
+    parsed = parseTransactionInput(
+      elements.amountInput.value,
+      elements.categoryInput.value,
+      document.querySelector("input[name='type']:checked").value
+    );
+  } catch (error) {
+    showToast(error.message);
+    elements.amountInput.focus();
+    return;
   }
 
-  return String(Date.now() + Math.random());
-}
-
-function normalizeNumber(text) {
-  const map = {
-    "٠": "0",
-    "١": "1",
-    "٢": "2",
-    "٣": "3",
-    "٤": "4",
-    "٥": "5",
-    "٦": "6",
-    "٧": "7",
-    "٨": "8",
-    "٩": "9",
-    "۰": "0",
-    "۱": "1",
-    "۲": "2",
-    "۳": "3",
-    "۴": "4",
-    "۵": "5",
-    "۶": "6",
-    "۷": "7",
-    "۸": "8",
-    "۹": "9"
+  const transaction = {
+    id: elements.editId.value || generateId(),
+    amount: parsed.amount,
+    category: parsed.category,
+    type: parsed.type,
+    date: elements.dateInput.value || todayISO(),
+    note: elements.noteInput.value.trim(),
+    updatedAt: new Date().toISOString()
   };
 
-  return text.replace(/[٠-٩۰-۹]/g, digit => map[digit]).replace(",", ".");
+  const existingIndex = state.transactions.findIndex((item) => item.id === transaction.id);
+  if (existingIndex >= 0) {
+    state.transactions[existingIndex] = transaction;
+    showToast("تم تعديل العملية");
+  } else {
+    state.transactions.push({ ...transaction, createdAt: new Date().toISOString() });
+    showToast("تم حفظ العملية");
+  }
+
+  persist();
+  resetForm();
+  render();
+  showView("dashboard-view", "لوحة التحكم");
 }
 
-function normalizeText(text) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function resetForm() {
+  elements.form.reset();
+  elements.editId.value = "";
+  elements.dateInput.value = todayISO();
+  elements.amountPreview.textContent = "يمكنك استعمال + - * /";
+  document.querySelector("input[name='type'][value='expense']").checked = true;
 }
 
-function loadTransactions() {
-  const saved = localStorage.getItem(storageKey);
-
-  if (!saved) {
-    return [];
+function updateAmountPreview() {
+  const value = elements.amountInput.value.trim();
+  if (!value) {
+    elements.amountPreview.textContent = "أمثلة: قهوة 10، فطور 8*3، مدخول 1000";
+    return;
   }
 
   try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = parseTransactionInput(
+      value,
+      elements.categoryInput.value,
+      document.querySelector("input[name='type']:checked").value
+    );
+    const typeLabel = parsed.type === "income" ? "مدخول" : "مصروف";
+    elements.amountPreview.textContent = `${typeLabel}: ${parsed.category} · ${formatMoney(parsed.amount)}`;
   } catch {
-    return [];
+    elements.amountPreview.textContent = "أدخل حسابا صحيحا";
   }
 }
 
-function saveTransactions() {
-  localStorage.setItem(storageKey, JSON.stringify(transactions));
-}
+function editTransaction(id) {
+  const transaction = state.transactions.find((item) => item.id === id);
+  if (!transaction) return;
 
-function saveBudget() {
-  localStorage.setItem(budgetKey, budgetInput.value || "0");
-}
-
-function getMonthKey(date) {
-  return date.slice(0, 7);
-}
-
-function parseLine(line, date = dateInput.value) {
-  const cleanLine = normalizeNumber(line.trim());
-  const amountMatch = cleanLine.match(/(\d+(?:\.\d+)?)\s*$/);
-
-  if (!amountMatch) {
-    return {
-      error: `السطر "${line}" ما فيهش المبلغ. كتب مثلا: قهوة 10`
-    };
-  }
-
-  const amount = Number(amountMatch[1]);
-  const description = cleanLine.replace(amountMatch[0], "").trim();
-
-  if (!description) {
-    return {
-      error: `السطر "${line}" خاصو category قبل المبلغ.`
-    };
-  }
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    return {
-      error: `السطر "${line}" فيه مبلغ غير صحيح.`
-    };
-  }
-
-  const normalizedDescription = normalizeText(description);
-  const match = categoryAliases.find(item =>
-    item.aliases.some(alias => normalizedDescription.includes(normalizeText(alias)))
-  );
-  const category = match ? match.category : "أخرى";
-
-  return {
-    id: createId(),
-    date,
-    category,
-    description,
-    amount,
-    createdAt: new Date().toISOString()
-  };
-}
-
-function parseMonthDate(line) {
-  const cleanLine = normalizeNumber(line.trim());
-  const match = cleanLine.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-
-  if (!match) {
-    return null;
-  }
-
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
-  const date = new Date(year, month - 1, day);
-
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-
-  const yyyy = String(year).padStart(4, "0");
-  const mm = String(month).padStart(2, "0");
-  const dd = String(day).padStart(2, "0");
-
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function looksLikeMonthDate(line) {
-  return /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(normalizeNumber(line.trim()));
-}
-
-function makeImportKey(transaction, occurrence) {
-  const normalizedDescription = normalizeText(transaction.description);
-  return [
-    transaction.date,
-    normalizedDescription,
-    transaction.amount.toFixed(2),
-    occurrence
-  ].join("|");
-}
-
-function parseMonthExpenses() {
-  const lines = monthExpenseText.value.split("\n");
-  const parsedTransactions = [];
-  const errors = [];
-  const occurrenceCounters = {};
-  let currentDate = null;
-  let firstDate = null;
-
-  lines.forEach((rawLine, index) => {
-    const line = rawLine.trim();
-
-    if (!line) {
-      return;
-    }
-
-    const parsedDate = parseMonthDate(line);
-
-    if (parsedDate) {
-      currentDate = parsedDate;
-      firstDate = firstDate || parsedDate;
-      return;
-    }
-
-    if (looksLikeMonthDate(line)) {
-      errors.push(`السطر ${index + 1}: التاريخ غير صحيح.`);
-      return;
-    }
-
-    if (!currentDate) {
-      errors.push(`السطر ${index + 1}: خاص التاريخ قبل المصاريف.`);
-      return;
-    }
-
-    const parsedLine = parseLine(line, currentDate);
-
-    if (parsedLine.error) {
-      errors.push(`السطر ${index + 1}: ${parsedLine.error}`);
-      return;
-    }
-
-    const counterKey = [
-      parsedLine.date,
-      normalizeText(parsedLine.description),
-      parsedLine.amount.toFixed(2)
-    ].join("|");
-    occurrenceCounters[counterKey] = (occurrenceCounters[counterKey] || 0) + 1;
-    parsedLine.importKey = makeImportKey(parsedLine, occurrenceCounters[counterKey]);
-    parsedLine.importSource = "month";
-    parsedTransactions.push(parsedLine);
-  });
-
-  if (!firstDate && errors.length === 0) {
-    errors.push("كتب مصاريف الشهر بالتاريخ، مثلا: 01/06/2026");
-  }
-
-  return {
-    errors,
-    firstDate,
-    transactions: parsedTransactions
-  };
-}
-
-function addExpenses() {
-  const lines = expenseText.value.split("\n").map(line => line.trim()).filter(Boolean);
-  const parsedLines = lines.map(parseLine);
-  const errors = parsedLines.filter(item => item.error).map(item => item.error);
-  const newTransactions = parsedLines.filter(item => !item.error);
-
-  if (errors.length > 0) {
-    alert(errors.join("\n"));
-    return;
-  }
-
-  if (newTransactions.length === 0) {
-    alert("كتب على الأقل مصروف واحد بحال: قهوة 10");
-    return;
-  }
-
-  transactions = [...newTransactions, ...transactions];
-  saveTransactions();
-  expenseText.value = "";
-  render();
-}
-
-function importMonthExpenses() {
-  const result = parseMonthExpenses();
-
-  if (result.errors.length > 0) {
-    alert(result.errors.join("\n"));
-    return;
-  }
-
-  const existingImportKeys = new Set(
-    transactions
-      .filter(transaction => transaction.importKey)
-      .map(transaction => transaction.importKey)
-  );
-  const newTransactions = result.transactions.filter(transaction =>
-    !existingImportKeys.has(transaction.importKey)
-  );
-
-  if (newTransactions.length > 0) {
-    transactions = [...newTransactions, ...transactions];
-    saveTransactions();
-  }
-
-  if (result.firstDate) {
-    dateInput.value = result.firstDate;
-  }
-
-  monthExpenseText.value = "";
-  render();
-  alert("تم إدخال مصاريف الشهر بنجاح");
+  elements.editId.value = transaction.id;
+  elements.amountInput.value = transaction.amount;
+  elements.categoryInput.value = transaction.category;
+  elements.dateInput.value = transaction.date;
+  elements.noteInput.value = transaction.note || "";
+  document.querySelector(`input[name='type'][value='${transaction.type}']`).checked = true;
+  updateAmountPreview();
+  showView("add-view", "تعديل عملية");
 }
 
 function deleteTransaction(id) {
-  transactions = transactions.filter(transaction => transaction.id !== id);
-  saveTransactions();
+  if (!confirm("هل تريد حذف هذه العملية؟")) return;
+  state.transactions = state.transactions.filter((item) => item.id !== id);
+  persist();
   render();
+  showToast("تم حذف العملية");
 }
 
-function getFilteredMonthTransactions() {
-  const selectedMonth = getMonthKey(dateInput.value);
-  return transactions.filter(transaction => getMonthKey(transaction.date) === selectedMonth);
+function saveBudget() {
+  const budget = Number(elements.budgetInput.value);
+  if (!Number.isFinite(budget) || budget < 0) {
+    showToast("أدخل ميزانية صحيحة");
+    return;
+  }
+
+  state.settings.monthlyBudget = roundMoney(budget);
+  persist();
+  renderDashboard();
+  showToast("تم حفظ الميزانية");
+}
+
+function resetAllData() {
+  if (!confirm("سيتم حذف كل العمليات والإعدادات. هل أنت متأكد؟")) return;
+  if (!confirm("تأكيد أخير: حذف جميع بيانات Masarif Pro Mobile؟")) return;
+
+  state.transactions = [];
+  state.settings = { monthlyBudget: 0 };
+  persist();
+  elements.budgetInput.value = "";
+  resetForm();
+  render();
+  showToast("تم مسح البيانات");
 }
 
 function render() {
-  const selectedDate = dateInput.value;
-  const selectedMonth = getMonthKey(selectedDate);
-  const monthlyBudget = Number(budgetInput.value) || 0;
-  const monthTransactions = getFilteredMonthTransactions();
-  const dayExpenses = transactions
-    .filter(transaction => transaction.date === selectedDate && !isIncome(transaction))
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const monthExpenses = monthTransactions
-    .filter(transaction => !isIncome(transaction))
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const budgetLeft = monthlyBudget - monthExpenses;
-
-  dayTotalEl.textContent = formatMoney(dayExpenses);
-  monthTotalEl.textContent = formatMoney(monthExpenses);
-  budgetLeftEl.textContent = formatMoney(budgetLeft);
-  tableBody.innerHTML = "";
-
-  monthTransactions.forEach(transaction => {
-    const row = document.createElement("tr");
-    const dateCell = document.createElement("td");
-    const categoryCell = document.createElement("td");
-    const descriptionCell = document.createElement("td");
-    const amountCell = document.createElement("td");
-    const actionCell = document.createElement("td");
-    const deleteButton = document.createElement("button");
-
-    dateCell.textContent = transaction.date;
-    categoryCell.textContent = transaction.category;
-    descriptionCell.textContent = transaction.description;
-    amountCell.textContent = formatMoney(transaction.amount);
-    amountCell.className = "amount";
-
-    deleteButton.textContent = "حذف";
-    deleteButton.className = "delete-btn";
-    deleteButton.dataset.id = transaction.id;
-    deleteButton.type = "button";
-
-    actionCell.appendChild(deleteButton);
-    row.append(dateCell, categoryCell, descriptionCell, amountCell, actionCell);
-    tableBody.appendChild(row);
-  });
-
-  emptyState.classList.toggle("hidden", monthTransactions.length > 0);
-  renderCategoryReport(monthTransactions);
-  renderBudgetAlert(monthlyBudget, monthExpenses, selectedMonth);
+  renderDashboard();
+  renderTransactions();
+  renderReports();
 }
 
-function renderCategoryReport(monthTransactions) {
-  const categoryTotals = {};
-  const totalExpenses = monthTransactions
-    .filter(transaction => !isIncome(transaction))
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const totalIncome = monthTransactions
-    .filter(isIncome)
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
+function renderDashboard() {
+  const today = todayISO();
+  const monthKey = today.slice(0, 7);
+  const currentMonth = state.transactions.filter((item) => item.date.startsWith(monthKey));
+  const todayExpenses = sumBy(state.transactions, (item) => item.type === "expense" && item.date === today);
+  const monthExpenses = sumBy(currentMonth, (item) => item.type === "expense");
+  const monthIncome = sumBy(currentMonth, (item) => item.type === "income");
+  const net = monthIncome - monthExpenses;
+  const budget = Number(state.settings.monthlyBudget) || 0;
+  const remaining = budget - monthExpenses;
 
-  monthTransactions.filter(transaction => !isIncome(transaction)).forEach(transaction => {
-    categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
-  });
+  setText("#today-total", formatMoney(todayExpenses));
+  setText("#month-expense-total", formatMoney(monthExpenses));
+  setText("#month-income-total", formatMoney(monthIncome));
+  setText("#budget-total", formatMoney(budget));
+  setText("#budget-remaining", formatMoney(remaining));
 
-  renderCategoryTotals(categoryTotals);
-  renderIncomeTotal(totalIncome);
-  totalExpensesReport.textContent = formatMad(totalExpenses);
-  totalIncomeReport.textContent = formatMad(totalIncome);
-  netReport.textContent = formatMad(totalExpenses - totalIncome);
+  const netElement = document.querySelector("#net-balance");
+  netElement.textContent = formatMoney(net);
+  netElement.classList.toggle("positive", net >= 0);
+  netElement.classList.toggle("negative", net < 0);
+
+  document.querySelector("#budget-warning").classList.toggle("hidden", !(budget > 0 && monthExpenses > budget));
 }
 
-function renderCategoryTotals(categoryTotals) {
-  categoryTotalsTable.innerHTML = "";
-  const sortedTotals = Object.entries(categoryTotals)
-    .sort((first, second) => categories.indexOf(first[0]) - categories.indexOf(second[0]));
+function renderTransactions() {
+  const query = elements.searchInput.value.trim().toLowerCase();
+  const filtered = state.transactions
+    .filter((item) => {
+      const text = `${item.category} ${item.note || ""}`.toLowerCase();
+      return text.includes(query);
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
 
-  if (sortedTotals.length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = "ما كاين حتى مصروف فهاد الشهر.";
-    row.appendChild(cell);
-    categoryTotalsTable.appendChild(row);
+  document.querySelector("#transaction-count").textContent = filtered.length;
+
+  const list = document.querySelector("#transactions-list");
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">لا توجد عمليات حاليا</div>`;
     return;
   }
 
-  sortedTotals.forEach(([category, total]) => {
-    const row = document.createElement("tr");
-    const categoryCell = document.createElement("td");
-    const totalCell = document.createElement("td");
+  const grouped = groupBy(filtered, (item) => item.date);
+  list.innerHTML = Object.entries(grouped)
+    .map(([date, transactions]) => renderDateGroup(date, transactions))
+    .join("");
 
-    categoryCell.textContent = category;
-    totalCell.textContent = formatNumber(total);
-    totalCell.className = "amount";
-    row.append(categoryCell, totalCell);
-    categoryTotalsTable.appendChild(row);
+  list.querySelectorAll("[data-edit-id]").forEach((button) => {
+    button.addEventListener("click", () => editTransaction(button.dataset.editId));
+  });
+  list.querySelectorAll("[data-delete-id]").forEach((button) => {
+    button.addEventListener("click", () => deleteTransaction(button.dataset.deleteId));
   });
 }
 
-function renderIncomeTotal(totalIncome) {
-  incomeTotalsTable.innerHTML = "";
-  const row = document.createElement("tr");
-  const labelCell = document.createElement("td");
-  const totalCell = document.createElement("td");
-
-  labelCell.textContent = "مدخول";
-  totalCell.textContent = formatNumber(totalIncome);
-  totalCell.className = "amount";
-  row.append(labelCell, totalCell);
-  incomeTotalsTable.appendChild(row);
+function renderDateGroup(date, transactions) {
+  const dayTotal = sumBy(transactions, (item) => item.type === "expense");
+  return `
+    <article class="date-group">
+      <div class="date-title">
+        <span>${formatDate(date)}</span>
+        <span>${formatMoney(dayTotal)}</span>
+      </div>
+      <div class="table-wrap">
+        <table class="transactions-table">
+          <tbody>
+            ${transactions.map(renderTransactionItem).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
 }
 
-function renderBudgetAlert(monthlyBudget, monthTotal, selectedMonth) {
-  budgetAlert.className = "alert hidden";
-  budgetAlert.textContent = "";
+function renderTransactionItem(transaction) {
+  const sign = transaction.type === "expense" ? "-" : "+";
+  const note = transaction.note ? `<div class="transaction-note">${escapeHtml(transaction.note)}</div>` : "";
+  const typeLabel = transaction.type === "expense" ? "مصروف" : "دخل";
 
-  if (monthlyBudget <= 0) {
+  return `
+    <tr class="transaction-item">
+      <td class="transaction-meta">
+        <div class="transaction-category">${escapeHtml(transaction.category)} · ${typeLabel}</div>
+        ${note}
+      </td>
+      <td class="amount ${transaction.type}">${sign}${formatMoney(transaction.amount)}</td>
+      <td class="transaction-actions">
+        <button class="icon-button" type="button" data-edit-id="${escapeHtml(transaction.id)}" aria-label="تعديل">✎</button>
+        <button class="icon-button delete" type="button" data-delete-id="${escapeHtml(transaction.id)}" aria-label="حذف">×</button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderReports() {
+  const monthKey = todayISO().slice(0, 7);
+  const monthTransactions = state.transactions.filter((item) => item.date.startsWith(monthKey));
+  const monthExpenses = monthTransactions.filter((item) => item.type === "expense");
+  const categoryTotals = totalsBy(monthExpenses, (item) => item.category);
+  const dailyTotals = totalsBy(monthExpenses, (item) => item.date);
+  const totalExpense = sumBy(monthTransactions, (item) => item.type === "expense");
+  const totalIncome = sumBy(monthTransactions, (item) => item.type === "income");
+
+  renderCategoryReport(categoryTotals, totalExpense);
+  renderDailyReport(dailyTotals);
+  renderMonthlySummary(totalIncome, totalExpense);
+}
+
+function renderCategoryReport(categoryTotals, totalExpense) {
+  const report = document.querySelector("#category-report");
+  const rows = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+
+  if (!rows.length) {
+    report.innerHTML = `<div class="empty-state">لا توجد مصاريف لهذا الشهر</div>`;
     return;
   }
 
-  const percentage = (monthTotal / monthlyBudget) * 100;
+  report.innerHTML = rows
+    .map(([category, total]) => {
+      const percent = totalExpense ? Math.round((total / totalExpense) * 100) : 0;
+      return `
+        <div>
+          <div class="report-row">
+            <strong>${escapeHtml(category)}</strong>
+            <span>${formatMoney(total)}</span>
+          </div>
+          <div class="bar-track" aria-hidden="true">
+            <div class="bar-fill" style="width: ${percent}%"></div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
 
-  if (monthTotal > monthlyBudget) {
-    budgetAlert.textContent = `تنبيه أحمر: مصاريف شهر ${selectedMonth} فاتت Budget. صرفتي ${formatMoney(monthTotal)} من أصل ${formatMoney(monthlyBudget)}.`;
-    budgetAlert.className = "alert danger";
+function renderDailyReport(dailyTotals) {
+  const body = document.querySelector("#daily-report");
+  const rows = Object.entries(dailyTotals).sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="2">لا توجد مصاريف</td></tr>`;
     return;
   }
 
-  if (percentage >= 80) {
-    budgetAlert.textContent = `تنبيه برتقالي: وصلتي ${percentage.toFixed(0)}% من Budget ديال شهر ${selectedMonth}.`;
-    budgetAlert.className = "alert warning";
-  }
+  body.innerHTML = rows
+    .map(([date, total]) => `<tr><td>${formatDate(date)}</td><td>${formatMoney(total)}</td></tr>`)
+    .join("");
+}
+
+function renderMonthlySummary(totalIncome, totalExpense) {
+  const net = totalIncome - totalExpense;
+  document.querySelector("#monthly-summary").innerHTML = `
+    <div class="summary-row"><strong>الدخل</strong><span>${formatMoney(totalIncome)}</span></div>
+    <div class="summary-row"><strong>المصاريف</strong><span>${formatMoney(totalExpense)}</span></div>
+    <div class="summary-row"><strong>الصافي</strong><span>${formatMoney(net)}</span></div>
+  `;
+}
+
+function exportJson() {
+  downloadFile(
+    `masarif-backup-${todayISO()}.json`,
+    JSON.stringify(state, null, 2),
+    "application/json"
+  );
+}
+
+function importJson(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      validateImport(imported);
+      state.transactions = imported.transactions;
+      state.settings = { monthlyBudget: Number(imported.settings?.monthlyBudget) || 0 };
+      persist();
+      elements.budgetInput.value = state.settings.monthlyBudget || "";
+      render();
+      showToast("تم استيراد النسخة الاحتياطية");
+    } catch (error) {
+      showToast(error.message || "ملف غير صالح");
+    } finally {
+      event.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function exportCsv() {
+  const header = ["id", "date", "type", "category", "amount", "note"];
+  const rows = state.transactions.map((item) => [
+    item.id,
+    item.date,
+    item.type,
+    item.category,
+    item.amount,
+    item.note || ""
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  downloadFile(`masarif-transactions-${todayISO()}.csv`, csv, "text/csv;charset=utf-8");
 }
 
 function downloadFile(filename, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
   URL.revokeObjectURL(url);
 }
 
-function exportCsv() {
-  const rows = [["date", "category", "description", "amount"]];
+function validateImport(data) {
+  if (!data || !Array.isArray(data.transactions)) {
+    throw new Error("ملف النسخة الاحتياطية غير صالح");
+  }
 
-  transactions.forEach(transaction => {
-    rows.push([
-      transaction.date,
-      transaction.category,
-      transaction.description,
-      String(transaction.amount)
-    ]);
-  });
-
-  const csv = rows
-    .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-
-  downloadFile("masarif.csv", csv, "text/csv;charset=utf-8");
-}
-
-function exportJson() {
-  const backup = {
-    exportedAt: new Date().toISOString(),
-    monthlyBudget: budgetInput.value || "0",
-    transactions
-  };
-
-  downloadFile("masarif-backup.json", JSON.stringify(backup, null, 2), "application/json");
-}
-
-function importJson(file) {
-  const reader = new FileReader();
-
-  reader.onload = event => {
-    try {
-      const data = JSON.parse(event.target.result);
-      const importedTransactions = Array.isArray(data) ? data : data.transactions;
-
-      if (!Array.isArray(importedTransactions)) {
-        throw new Error("Invalid backup");
-      }
-
-      transactions = importedTransactions;
-      saveTransactions();
-
-      if (data.monthlyBudget !== undefined) {
-        budgetInput.value = data.monthlyBudget;
-        saveBudget();
-      }
-
-      render();
-      alert("Import tamam. رجعات data بنجاح.");
-    } catch {
-      alert("هاد الملف ماشي JSON backup صحيح.");
+  data.transactions.forEach((item) => {
+    const validType = item.type === "expense" || item.type === "income";
+    const validAmount = Number.isFinite(Number(item.amount)) && Number(item.amount) >= 0;
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(item.date || "");
+    const validId = /^[A-Za-z0-9:_-]+$/.test(String(item.id || ""));
+    if (!validId || !validType || !validAmount || !validDate) {
+      throw new Error("النسخة الاحتياطية تحتوي على عملية غير صالحة");
     }
+    item.id = String(item.id);
+    item.amount = roundMoney(Number(item.amount));
+    item.category = String(item.category || "أخرى");
+    item.note = String(item.note || "");
+    item.updatedAt = item.updatedAt || new Date().toISOString();
+  });
+}
+
+function parseTransactionInput(rawValue, fallbackCategory, fallbackType) {
+  const value = normalizeInput(rawValue);
+  if (!value) throw new Error("أدخل العملية");
+
+  const firstNumberIndex = value.search(/\d/);
+  if (firstNumberIndex === -1) throw new Error("أدخل المبلغ");
+
+  const categoryText = value.slice(0, firstNumberIndex).trim();
+  const expression = value.slice(firstNumberIndex).trim();
+  const amount = parseAmountExpression(expression);
+  const type = isIncomeText(categoryText) ? "income" : fallbackType;
+  const category = resolveCategory(categoryText, type, fallbackCategory);
+
+  return { amount, category, type };
+}
+
+function resolveCategory(categoryText, type, fallbackCategory) {
+  if (type === "income" && isIncomeText(categoryText)) {
+    return "مدخول";
+  }
+
+  if (!categoryText) {
+    return fallbackCategory || "أخرى";
+  }
+
+  const exactCategory = CATEGORIES.find((category) => category === categoryText);
+  if (exactCategory) return exactCategory;
+
+  const compactText = categoryText.replace(/\s+/g, "");
+  const compactCategory = CATEGORIES.find((category) => category.replace(/\s+/g, "") === compactText);
+  return compactCategory || fallbackCategory || "أخرى";
+}
+
+function isIncomeText(text) {
+  const normalized = normalizeInput(text).toLowerCase();
+  return INCOME_WORDS.some((word) => normalized.includes(word.toLowerCase()));
+}
+
+/* Safe calculator parser for + - * / without using eval.
+   Grammar: expression -> term -> factor, with optional parentheses. */
+function parseAmountExpression(expression) {
+  const input = normalizeInput(expression).replace(/\s+/g, "").replace(/,/g, ".");
+  if (!input) throw new Error("أدخل المبلغ");
+  if (!/^[\d+\-*/().]+$/.test(input)) throw new Error("الحساب يحتوي على رموز غير مسموحة");
+
+  let index = 0;
+
+  function parseExpression() {
+    let value = parseTerm();
+    while (input[index] === "+" || input[index] === "-") {
+      const operator = input[index++];
+      const next = parseTerm();
+      value = operator === "+" ? value + next : value - next;
+    }
+    return value;
+  }
+
+  function parseTerm() {
+    let value = parseFactor();
+    while (input[index] === "*" || input[index] === "/") {
+      const operator = input[index++];
+      const next = parseFactor();
+      if (operator === "/" && next === 0) throw new Error("لا يمكن القسمة على صفر");
+      value = operator === "*" ? value * next : value / next;
+    }
+    return value;
+  }
+
+  function parseFactor() {
+    if (input[index] === "-") {
+      index += 1;
+      return -parseFactor();
+    }
+
+    if (input[index] === "(") {
+      index += 1;
+      const value = parseExpression();
+      if (input[index] !== ")") throw new Error("الأقواس غير مكتملة");
+      index += 1;
+      return value;
+    }
+
+    return parseNumber();
+  }
+
+  function parseNumber() {
+    const start = index;
+    while (/\d|\./.test(input[index])) index += 1;
+    const raw = input.slice(start, index);
+    if (!raw || raw === "." || (raw.match(/\./g) || []).length > 1) {
+      throw new Error("أدخل رقما صحيحا");
+    }
+    return Number(raw);
+  }
+
+  const result = parseExpression();
+  if (index !== input.length) throw new Error("الحساب غير مكتمل");
+  if (!Number.isFinite(result) || result < 0) throw new Error("المبلغ يجب أن يكون صفرا أو أكثر");
+  return roundMoney(result);
+}
+
+function loadState() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (stored && Array.isArray(stored.transactions)) {
+      return {
+        transactions: stored.transactions,
+        settings: { monthlyBudget: Number(stored.settings?.monthlyBudget) || 0 }
+      };
+    }
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  return {
+    transactions: [],
+    settings: { monthlyBudget: 0 }
   };
-
-  reader.readAsText(file);
 }
 
-function cleanupOldOfflineCache() {
-  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then(registrations => {
-        registrations.forEach(registration => {
-          registration.unregister();
-        });
-      })
-      .catch(() => {});
-  }
-
-  if (typeof window !== "undefined" && "caches" in window) {
-    caches.keys()
-      .then(cacheNames => {
-        cacheNames
-          .filter(cacheName => cacheName.startsWith("masarif-static"))
-          .forEach(cacheName => {
-            caches.delete(cacheName);
-          });
-      })
-      .catch(() => {});
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    showToast("تعذر حفظ البيانات على هذا المتصفح");
   }
 }
 
-dateInput.value = todayDate();
-budgetInput.value = localStorage.getItem(budgetKey) || "";
-
-addBtn.addEventListener("click", addExpenses);
-importMonthBtn.addEventListener("click", importMonthExpenses);
-dateInput.addEventListener("change", render);
-budgetInput.addEventListener("input", () => {
-  saveBudget();
-  render();
-});
-
-tableBody.addEventListener("click", event => {
-  if (event.target.classList.contains("delete-btn")) {
-    deleteTransaction(event.target.dataset.id);
-  }
-});
-
-exportCsvBtn.addEventListener("click", exportCsv);
-exportJsonBtn.addEventListener("click", exportJson);
-importJsonInput.addEventListener("change", event => {
-  const file = event.target.files[0];
-
-  if (file) {
-    importJson(file);
+function generateId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
   }
 
-  event.target.value = "";
-});
+  return `tx-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
-render();
+function sumBy(items, predicate) {
+  return roundMoney(items.reduce((total, item) => total + (predicate(item) ? Number(item.amount) : 0), 0));
+}
+
+function totalsBy(items, keyFn) {
+  return items.reduce((totals, item) => {
+    const key = keyFn(item);
+    totals[key] = roundMoney((totals[key] || 0) + Number(item.amount));
+    return totals;
+  }, {});
+}
+
+function groupBy(items, keyFn) {
+  return items.reduce((groups, item) => {
+    const key = keyFn(item);
+    groups[key] = groups[key] || [];
+    groups[key].push(item);
+    return groups;
+  }, {});
+}
+
+function todayISO() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("ar-MA", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(`${date}T12:00:00`));
+}
+
+function formatMoney(value) {
+  return `${roundMoney(value).toLocaleString("fr-MA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })} ${CURRENCY}`;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function normalizeInput(value) {
+  return String(value || "")
+    .replace(/[٠-٩]/g, (digit) => "٠١٢٣٤٥٦٧٨٩".indexOf(digit))
+    .replace(/[۰-۹]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
+    .trim();
+}
+
+function setText(selector, value) {
+  document.querySelector(selector).textContent = value;
+}
+
+function csvCell(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function showToast(message) {
+  elements.toast.textContent = message;
+  elements.toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => elements.toast.classList.remove("show"), 2200);
+}
