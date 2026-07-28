@@ -5,18 +5,26 @@
   const STORAGE_KEY = "masarifProMobile.v1";
   const XLSX_CDN = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 
-  document.addEventListener("DOMContentLoaded", function () {
-    const csvButton = document.getElementById("export-csv-btn");
-    if (!csvButton || document.getElementById("export-xlsx-btn")) return;
+  document.addEventListener("DOMContentLoaded", setupExcelButton);
 
-    const xlsxButton = document.createElement("button");
-    xlsxButton.id = "export-xlsx-btn";
-    xlsxButton.className = "secondary-button";
-    xlsxButton.type = "button";
-    xlsxButton.textContent = "Export Excel XLSX";
-    xlsxButton.addEventListener("click", exportExcelXlsx);
-    csvButton.insertAdjacentElement("afterend", xlsxButton);
-  });
+  function setupExcelButton() {
+    const csvButton = document.getElementById("export-csv-btn");
+    let xlsxButton = document.getElementById("export-xlsx-btn");
+
+    if (!xlsxButton && csvButton) {
+      xlsxButton = document.createElement("button");
+      xlsxButton.id = "export-xlsx-btn";
+      xlsxButton.className = "secondary-button";
+      xlsxButton.type = "button";
+      xlsxButton.textContent = "Export Excel XLSX";
+      csvButton.insertAdjacentElement("afterend", xlsxButton);
+    }
+
+    if (xlsxButton) {
+      xlsxButton.removeEventListener("click", exportExcelXlsx);
+      xlsxButton.addEventListener("click", exportExcelXlsx);
+    }
+  }
 
   function getState() {
     try {
@@ -74,7 +82,7 @@
       XLSX.utils.book_append_sheet(workbook, worksheet, "Masarif");
       XLSX.writeFile(workbook, "masarif-excel-" + todayISO() + ".xlsx");
     } catch (error) {
-      alert("تعذر تصدير Excel. جرّب Export JSON backup أو تأكد من الاتصال بالإنترنت أول مرة.");
+      alert("تعذر تصدير Excel. جرّب مرة أخرى، وتأكد من الاتصال بالإنترنت أول مرة.");
     }
   }
 })();
