@@ -3,65 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0F6B5C">
+  <meta name="theme-color" content="#0f6b5c">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Masarif Pro">
   <meta name="format-detection" content="telephone=no">
   <title>Masarif Pro Mobile</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260804-2">
 </head>
 <body>
   <div class="app-shell">
     <header class="app-header">
       <div>
         <p class="app-kicker">Masarif Pro Mobile</p>
-        <h1 id="screen-title">Dashboard</h1>
+        <h1 id="screen-title">الرئيسية</h1>
       </div>
-      <div class="header-badge">MAD</div>
+      <div class="header-tools">
+        <label class="month-control" for="active-month">
+          <span>الشهر</span>
+          <input id="active-month" type="month">
+        </label>
+        <div class="header-badge">MAD</div>
+      </div>
     </header>
 
     <main>
       <section id="dashboard-view" class="view active" aria-labelledby="dashboard-title">
-        <h2 id="dashboard-title" class="sr-only">Dashboard</h2>
+        <h2 id="dashboard-title" class="sr-only">الرئيسية</h2>
 
         <article class="balance-card">
           <span>الصافي ديال الشهر</span>
           <strong id="net-balance">0,00 MAD</strong>
           <div class="balance-row">
-            <span>المداخيل <b id="month-income-total">0,00 MAD</b></span>
-            <span>المصاريف <b id="month-expense-total">0,00 MAD</b></span>
+            <span>💼 المداخيل <b id="month-income-total">0,00 MAD</b></span>
+            <span>💳 المصاريف <b id="month-expense-total">0,00 MAD</b></span>
           </div>
         </article>
 
-        <div id="budget-warning" class="alert-card hidden">
-          المصاريف فاتت الميزانية ديال الشهر
-        </div>
+        <div id="budget-warning" class="alert-card hidden">⚠️ المصاريف فاتت الميزانية ديال الشهر</div>
 
         <div class="metrics-grid">
-          <article class="metric-card">
-            <span>مصروف اليوم</span>
-            <strong id="today-total">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>الباقي من الميزانية</span>
-            <strong id="budget-remaining">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>ميزانية الشهر</span>
-            <strong id="budget-total">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>عدد العمليات</span>
-            <strong id="dashboard-count">0</strong>
-          </article>
+          <article class="metric-card"><span>📅 مصروف اليوم</span><strong id="today-total">0,00 MAD</strong></article>
+          <article class="metric-card"><span>💰 الباقي من الميزانية</span><strong id="budget-remaining">0,00 MAD</strong></article>
+          <article class="metric-card"><span>🎯 ميزانية الشهر</span><strong id="budget-total">0,00 MAD</strong></article>
+          <article class="metric-card"><span>🧾 عدد العمليات</span><strong id="dashboard-count">0</strong></article>
         </div>
 
         <article class="panel">
           <div class="panel-head">
             <h3>آخر العمليات</h3>
-            <button class="text-button" type="button" data-view-jump="reports-view">التفاصيل</button>
+            <button class="text-button" type="button" data-view-jump="reports-view">عرض الكل</button>
           </div>
           <div id="recent-transactions" class="compact-list"></div>
         </article>
@@ -69,58 +61,42 @@
 
       <section id="add-view" class="view" aria-labelledby="add-title">
         <div class="panel-head">
-          <h2 id="add-title">إضافة اليوم</h2>
+          <h2 id="add-title">➕ إضافة المصاريف</h2>
           <button id="clear-quick-btn" class="text-button" type="button">مسح</button>
         </div>
-
         <article class="panel input-panel">
-          <input id="edit-id" type="hidden">
-
-          <label for="quick-date">التاريخ</label>
+          <label for="quick-date">📅 التاريخ</label>
           <input id="quick-date" type="date">
 
-          <label for="quick-input">المصاريف</label>
-          <textarea id="quick-input" rows="9" inputmode="text" placeholder="قهوة 10&#10;فطور 14&#10;غداء 15&#10;طاكسي 50/2&#10;مدخول 1000"></textarea>
+          <label for="quick-input">✍️ كتب كل مصروف فـ سطر</label>
+          <textarea id="quick-input" rows="10" inputmode="text" placeholder="طاكسي 20&#10;ترام 8&#10;قهوة 10&#10;فطور 14&#10;تعبئة 50&#10;مدخول 1000"></textarea>
 
           <div id="quick-preview" class="preview-box">0 عملية</div>
-          <button id="save-quick-btn" class="primary-button" type="button">حفظ / Calculer</button>
+          <button id="save-quick-btn" class="primary-button" type="button">حفظ وحساب</button>
         </article>
       </section>
 
       <section id="import-view" class="view" aria-labelledby="import-title">
         <div class="panel-head">
-          <h2 id="import-title">Month Import</h2>
+          <h2 id="import-title">📥 إدخال شهر كامل</h2>
           <button id="clear-import-btn" class="text-button" type="button">مسح</button>
         </div>
-
         <article class="panel input-panel">
-          <label for="month-import-input">الشهر كامل</label>
-          <textarea id="month-import-input" rows="14" inputmode="text" placeholder="01/07/2026&#10;قهوة 10&#10;فطور 14&#10;غداء 15&#10;&#10;02/07/2026&#10;قهوة 10&#10;طاكسي 20&#10;دواء 35"></textarea>
+          <label for="month-import-input">لصق مصاريف الشهر</label>
+          <textarea id="month-import-input" rows="16" inputmode="text" placeholder="01/08/2026&#10;طاكسي 20&#10;قهوة 10&#10;&#10;02/08/2026&#10;ترام 8&#10;دواء 35"></textarea>
           <div id="import-preview" class="preview-box">0 عملية</div>
           <button id="import-month-btn" class="primary-button" type="button">استيراد الشهر</button>
         </article>
       </section>
 
       <section id="reports-view" class="view" aria-labelledby="reports-title">
-        <h2 id="reports-title">Reports</h2>
+        <h2 id="reports-title">📊 التقارير</h2>
 
         <div class="report-grid">
-          <article class="metric-card">
-            <span>مصاريف الشهر</span>
-            <strong id="report-expenses">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>مداخيل الشهر</span>
-            <strong id="report-income">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>الصافي</span>
-            <strong id="report-net">0,00 MAD</strong>
-          </article>
-          <article class="metric-card">
-            <span>أكبر فئة</span>
-            <strong id="biggest-category">-</strong>
-          </article>
+          <article class="metric-card"><span>مصاريف الشهر</span><strong id="report-expenses">0,00 MAD</strong></article>
+          <article class="metric-card"><span>مداخيل الشهر</span><strong id="report-income">0,00 MAD</strong></article>
+          <article class="metric-card"><span>الصافي</span><strong id="report-net">0,00 MAD</strong></article>
+          <article class="metric-card"><span>أكبر فئة</span><strong id="biggest-category">-</strong></article>
         </div>
 
         <article class="panel">
@@ -129,36 +105,53 @@
         </article>
 
         <article class="panel">
-          <h3>المجموع اليومي</h3>
+          <div class="panel-head"><h3>المجموع اليومي</h3><span class="pill">اضغط على النهار للتعديل</span></div>
           <div id="daily-report" class="daily-list"></div>
         </article>
 
         <article class="panel">
-          <div class="panel-head">
-            <h3>العمليات</h3>
-            <span id="transaction-count" class="pill">0</span>
-          </div>
-
+          <div class="panel-head"><h3>جميع العمليات</h3><span id="transaction-count" class="pill">0</span></div>
           <div class="filters">
             <label class="sr-only" for="search-input">بحث</label>
-            <input id="search-input" type="search" placeholder="بحث بالفئة أو الملاحظة">
-
+            <input id="search-input" type="search" placeholder="بحث: طاكسي، قهوة، محمد...">
             <label class="sr-only" for="filter-date">فلتر التاريخ</label>
             <input id="filter-date" type="date">
-
             <label class="sr-only" for="filter-category">فلتر الفئة</label>
             <select id="filter-category"></select>
           </div>
-
           <div id="transactions-list" class="transaction-list"></div>
         </article>
       </section>
 
-      <section id="settings-view" class="view" aria-labelledby="settings-title">
-        <h2 id="settings-title">Settings</h2>
+      <section id="day-view" class="view day-view" aria-labelledby="day-view-title">
+        <div class="day-toolbar">
+          <button id="back-from-day-btn" class="secondary-button compact-button" type="button">→ رجوع</button>
+          <div>
+            <p class="app-kicker">مصاريف النهار كاملة</p>
+            <h2 id="day-view-title">📅 اليوم</h2>
+          </div>
+        </div>
+
+        <div class="day-summary-grid">
+          <article class="metric-card"><span>المصاريف</span><strong id="day-expense-total">0,00 MAD</strong></article>
+          <article class="metric-card"><span>المداخيل</span><strong id="day-income-total">0,00 MAD</strong></article>
+          <article class="metric-card"><span>الصافي</span><strong id="day-net-total">0,00 MAD</strong></article>
+        </div>
 
         <article class="panel">
-          <label for="budget-input">ميزانية الشهر</label>
+          <div class="panel-head">
+            <h3>عمليات هاد النهار</h3>
+            <button id="add-day-transaction-btn" class="primary-button compact-button" type="button">＋ زيد مصروف</button>
+          </div>
+          <div id="day-transactions-list" class="transaction-list"></div>
+        </article>
+      </section>
+
+      <section id="settings-view" class="view" aria-labelledby="settings-title">
+        <h2 id="settings-title">⚙️ الإعدادات</h2>
+
+        <article class="panel">
+          <label for="budget-input">🎯 ميزانية الشهر</label>
           <div class="inline-action">
             <input id="budget-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
             <button id="save-budget-btn" class="secondary-button" type="button">حفظ</button>
@@ -166,30 +159,28 @@
         </article>
 
         <article class="panel">
-          <h3>الفئات الخاصة</h3>
-          <div class="inline-action">
-            <input id="custom-category-input" type="text" placeholder="فئة جديدة">
-            <button id="add-category-btn" class="secondary-button" type="button">إضافة</button>
-          </div>
-          <div id="custom-category-list" class="chip-list"></div>
+          <h3>🏷️ الفئات المعتمدة</h3>
+          <p class="muted-text">هاد الفئات ثابتة، والتطبيق كيصنف المصروف أوتوماتيكياً.</p>
+          <div id="fixed-category-list" class="category-grid"></div>
         </article>
 
         <article class="panel">
-          <h3>الكلمات المفتاحية</h3>
+          <h3>🧠 القاموس الذكي</h3>
+          <p class="muted-text">زيد أي كلمة باش تدخل مباشرة للفئة لي تختار.</p>
           <label for="keyword-category">الفئة</label>
           <select id="keyword-category"></select>
           <div class="inline-action">
-            <input id="keyword-input" type="text" placeholder="مثال: cafe">
+            <input id="keyword-input" type="text" placeholder="مثال: Uber">
             <button id="add-keyword-btn" class="secondary-button" type="button">إضافة</button>
           </div>
           <div id="keyword-list" class="chip-list"></div>
         </article>
 
         <article class="panel">
-          <h3>Backup</h3>
+          <h3>💾 النسخ والتصدير</h3>
           <div class="button-stack">
-            <button id="export-json-btn" class="secondary-button" type="button">Export JSON</button>
-            <label class="file-button" for="import-json-input">Import JSON</label>
+            <button id="export-json-btn" class="secondary-button" type="button">Export JSON Backup</button>
+            <label class="file-button" for="import-json-input">Import JSON Backup</label>
             <input id="import-json-input" type="file" accept="application/json,.json">
             <button id="export-csv-btn" class="secondary-button" type="button">Export CSV</button>
             <button id="export-xlsx-btn" class="secondary-button" type="button">Export Excel XLSX</button>
@@ -198,37 +189,60 @@
 
         <article class="panel danger-zone">
           <h3>مسح البيانات</h3>
+          <p class="muted-text">هاد الزر هو الوحيد لي كيمسح الأرشيف.</p>
           <button id="reset-data-btn" class="danger-button" type="button">Reset data</button>
         </article>
       </section>
     </main>
 
     <nav class="bottom-nav" aria-label="التنقل">
-      <button class="nav-button active" type="button" data-view="dashboard-view" data-title="Dashboard">
-        <span class="nav-icon">⌂</span>
-        <span>Dashboard</span>
-      </button>
-      <button class="nav-button" type="button" data-view="add-view" data-title="Add">
-        <span class="nav-icon">＋</span>
-        <span>Add</span>
-      </button>
-      <button class="nav-button" type="button" data-view="import-view" data-title="Month Import">
-        <span class="nav-icon">⇩</span>
-        <span>Month Import</span>
-      </button>
-      <button class="nav-button" type="button" data-view="reports-view" data-title="Reports">
-        <span class="nav-icon">▤</span>
-        <span>Reports</span>
-      </button>
-      <button class="nav-button" type="button" data-view="settings-view" data-title="Settings">
-        <span class="nav-icon">⚙</span>
-        <span>Settings</span>
-      </button>
+      <button class="nav-button active" type="button" data-view="dashboard-view" data-title="الرئيسية"><span class="nav-icon">⌂</span><span>الرئيسية</span></button>
+      <button class="nav-button" type="button" data-view="add-view" data-title="إضافة"><span class="nav-icon">＋</span><span>إضافة</span></button>
+      <button class="nav-button" type="button" data-view="import-view" data-title="شهر كامل"><span class="nav-icon">⇩</span><span>شهر كامل</span></button>
+      <button class="nav-button" type="button" data-view="reports-view" data-title="التقارير"><span class="nav-icon">▤</span><span>التقارير</span></button>
+      <button class="nav-button" type="button" data-view="settings-view" data-title="الإعدادات"><span class="nav-icon">⚙</span><span>الإعدادات</span></button>
     </nav>
   </div>
 
+  <div id="transaction-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="transaction-modal-title">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <form id="transaction-form" class="modal-card">
+      <div class="panel-head">
+        <h2 id="transaction-modal-title">تعديل المصروف</h2>
+        <button id="close-transaction-modal" class="icon-button" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <input id="modal-transaction-id" type="hidden">
+
+      <label for="modal-date">📅 التاريخ</label>
+      <input id="modal-date" type="date" required>
+
+      <label for="modal-type">النوع</label>
+      <select id="modal-type">
+        <option value="expense">مصروف</option>
+        <option value="income">مدخول</option>
+      </select>
+
+      <label for="modal-category">🏷️ الفئة</label>
+      <select id="modal-category"></select>
+
+      <label for="modal-description">📝 الوصف</label>
+      <input id="modal-description" type="text" placeholder="مثال: طاكسي" required>
+
+      <label for="modal-amount">💰 المبلغ</label>
+      <input id="modal-amount" type="number" inputmode="decimal" min="0" step="0.01" required>
+
+      <label for="modal-note">ملاحظة</label>
+      <input id="modal-note" type="text" placeholder="اختياري">
+
+      <div class="modal-actions">
+        <button class="primary-button" type="submit">✅ حفظ التعديل</button>
+        <button id="cancel-transaction-modal" class="secondary-button" type="button">إلغاء</button>
+      </div>
+    </form>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="script.js"></script>
-  <script src="export-excel.js"></script>
+  <script src="script.js?v=20260804-2"></script>
+  <script src="export-excel.js?v=20260804-2"></script>
 </body>
 </html>
