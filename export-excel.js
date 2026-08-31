@@ -1,4 +1,134 @@
-/* Masarif Pro Mobile - Excel export helper */
+/* Masarif Pro Mobile - persistence guard + Excel export */
+
+/* Strong autosave for iPhone/PWA. Keeps the normal storage key unchanged and adds a mirror backup. */
+(function () {
+  "use strict";
+
+  const MAIN_KEY = "masarifProMobile.v1";
+  const MIRROR_KEY = "masarifProMobile.autosave.v1";
+  let saving = false;
+
+  function appState() {
+    try {
+      if (typeof state !== "undefined" && state && Array.isArray(state.transactions)) return state;
+    } catch (_) {}
+    return null;
+  }
+
+  function savedAt(value) {
+    return Number(value && value.settings && value.settings.__lastSavedAt) || 0;
+  }
+
+  function readJson(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /* Runs before DOMContentLoaded. If the mirror is newer, put it back into the live state
+     before the application renders. */
+  function restoreNewestCopy() {
+    const live = appState();
+    const mirror = readJson(MIRROR_KEY);
+    if (!live || !mirror || !Array.isArray(mirror.transactions)) return;
+
+    if (savedAt(mirror) > savedAt(live)) {
+      live.transactions = mirror.transactions;
+      live.settings = mirror.settings || {};
+      try { localStorage.setItem(MAIN_KEY, JSON.stringify(live)); } catch (_) {}
+    }
+  }
+
+  function saveEverything() {
+    if (saving) return;
+    const live = appState();
+    if (!live) return;
+
+    saving = true;
+    try {
+      live.settings = live.settings || {};
+      live.settings.__lastSavedAt = Date.now();
+      const payload = JSON.stringify(live);
+
+      /* Mirror first, then primary. If iOS interrupts one write, one valid copy remains. */
+      localStorage.setItem(MIRROR_KEY, payload);
+      localStorage.setItem(MAIN_KEY, payload);
+    } catch (error) {
+      console.warn("Masarif autosave failed", error);
+    } finally {
+      saving = false;
+    }
+  }
+
+  restoreNewestCopy();
+
+  /* Make every existing persist() call also create the safety copy. */
+  try {
+    if (typeof persist === "function" && !window.__masarifPersistWrapped) {
+      const originalPersist = persist;
+      persist = function () {
+        const live = appState();
+        if (live) {
+          live.settings = live.settings || {};
+          live.settings.__lastSavedAt = Date.now();
+          try { localStorage.setItem(MIRROR_KEY, JSON.stringify(live)); } catch (_) {}
+        }
+        originalPersist();
+        saveEverything();
+      };
+      window.__masarifPersistWrapped = true;
+    }
+  } catch (error) {
+    console.warn("Could not wrap persist", error);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    saveEverything();
+    setTimeout(saveEverything, 1200);
+
+    /* When a transaction is edited manually, the newly selected category becomes the truth.
+       This prevents an old originalCategory from restoring itself on the next PWA launch. */
+    const form = document.getElementById("transaction-form");
+    if (form) {
+      form.addEventListener("submit", function () {
+        const idField = document.getElementById("modal-transaction-id");
+        const categoryField = document.getElementById("modal-category");
+        const typeField = document.getElementById("modal-type");
+        const id = idField ? idField.value : "";
+        const chosenCategory = typeField && typeField.value === "income" ? "المدخول" : (categoryField ? categoryField.value : "");
+
+        setTimeout(function () {
+          const live = appState();
+          if (!live || !id) {
+            saveEverything();
+            return;
+          }
+          const item = live.transactions.find(function (transaction) { return String(transaction.id) === String(id); });
+          if (item && chosenCategory) {
+            item.category = chosenCategory;
+            if (item.originalCategory && item.originalCategory !== chosenCategory) delete item.originalCategory;
+          }
+          saveEverything();
+        }, 0);
+      }, true);
+    }
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") saveEverything();
+  });
+  window.addEventListener("pagehide", saveEverything);
+  window.addEventListener("beforeunload", saveEverything);
+  window.addEventListener("freeze", saveEverything);
+
+  /* Extra safety while the PWA stays open. */
+  setInterval(saveEverything, 5000);
+})();
+
+/* Excel export helper */
 (function () {
   "use strict";
 
@@ -181,9 +311,9 @@
   async function exportExcelXlsx() {
     try {
       await loadScript(XLSX_CDN);
-      const state = getState();
-      const transactions = Array.isArray(state.transactions) ? state.transactions : [];
-      const settings = state.settings || {};
+      const current = getState();
+      const transactions = Array.isArray(current.transactions) ? current.transactions : [];
+      const settings = current.settings || {};
 
       const transactionRows = buildTransactionRows(transactions);
       const summaryRows = buildSummaryRows(transactions, settings);
@@ -193,45 +323,10 @@
       const workbook = XLSX.utils.book_new();
       workbook.Workbook = { Views: [{ RTL: true }] };
 
-      XLSX.utils.book_append_sheet(
-        workbook,
-        sheetFromRows(
-          summaryRows,
-          ["العنوان", "القيمة", "ملاحظة"],
-          [28, 18, 30]
-        ),
-        "Résumé"
-      );
-
-      XLSX.utils.book_append_sheet(
-        workbook,
-        sheetFromRows(
-          dailyRows,
-          ["التاريخ", "مجموع المصاريف", "مجموع المداخيل", "الصافي", "عدد العمليات"],
-          [14, 18, 18, 16, 14]
-        ),
-        "Par jour"
-      );
-
-      XLSX.utils.book_append_sheet(
-        workbook,
-        sheetFromRows(
-          categoryRows,
-          ["الفئة", "مجموع المصاريف", "مجموع المداخيل", "الصافي", "عدد العمليات"],
-          [18, 18, 18, 16, 14]
-        ),
-        "Par catégorie"
-      );
-
-      XLSX.utils.book_append_sheet(
-        workbook,
-        sheetFromRows(
-          transactionRows,
-          ["التاريخ", "النوع", "الفئة", "الوصف الأصلي", "الملاحظة", "المبلغ", "تاريخ الإضافة"],
-          [14, 12, 16, 36, 24, 12, 24]
-        ),
-        "Transactions"
-      );
+      XLSX.utils.book_append_sheet(workbook, sheetFromRows(summaryRows, ["العنوان", "القيمة", "ملاحظة"], [28, 18, 30]), "Résumé");
+      XLSX.utils.book_append_sheet(workbook, sheetFromRows(dailyRows, ["التاريخ", "مجموع المصاريف", "مجموع المداخيل", "الصافي", "عدد العمليات"], [14, 18, 18, 16, 14]), "Par jour");
+      XLSX.utils.book_append_sheet(workbook, sheetFromRows(categoryRows, ["الفئة", "مجموع المصاريف", "مجموع المداخيل", "الصافي", "عدد العمليات"], [18, 18, 18, 16, 14]), "Par catégorie");
+      XLSX.utils.book_append_sheet(workbook, sheetFromRows(transactionRows, ["التاريخ", "النوع", "الفئة", "الوصف الأصلي", "الملاحظة", "المبلغ", "تاريخ الإضافة"], [14, 12, 16, 36, 24, 12, 24]), "Transactions");
 
       XLSX.writeFile(workbook, "masarif-complet-" + todayISO() + ".xlsx");
     } catch (error) {
