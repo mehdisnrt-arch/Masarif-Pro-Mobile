@@ -7,33 +7,45 @@
     {
       name: "نظافة شخصية",
       emoji: "🧴",
-      legacy: [],
-      keywords: ["كينطة", "كِنطة", "kinta", "kineta", "quenta"]
+      legacy: ["نظافة شخصية"],
+      keywords: ["كينطة", "كِنطة", "قينطة", "kinta", "kineta", "quenta", "نظافة شخصية", "عطر", "parfum", "deodorant", "gel douche", "shampoing", "shampoo"]
     },
     {
       name: "التجول",
       emoji: "🚶",
-      legacy: [],
-      keywords: ["بحر", "البحر", "شاطئ", "كورنيش", "plage", "beach", "mer", "promenade", "balade", "tour", "sortie", "تجول", "جولة"]
+      legacy: ["التجول", "تجول"],
+      keywords: ["بحر", "البحر", "شاطئ", "كورنيش", "plage", "beach", "mer", "promenade", "balade", "tour", "sortie", "تجول", "التجول", "جولة", "خرجة", "خروج"]
     },
     {
       name: "أجهزة إلكترونية",
       emoji: "💻",
-      legacy: [],
-      keywords: ["الكترونيك", "إلكترونيك", "الكترونيات", "إلكترونيات", "electronic", "electronique", "électronique", "pc", "ordinateur", "laptop", "هاتف", "telephone", "téléphone", "chargeur", "شارجور", "cable", "كابل", "usb", "ssd", "ram"]
+      legacy: ["اجهزة الكترونية", "أجهزة إلكترونية", "الكترونيك", "إلكترونيك"],
+      keywords: ["الكترونيك", "إلكترونيك", "الكترونيات", "إلكترونيات", "اجهزة الكترونية", "أجهزة إلكترونية", "electronic", "electronics", "electronique", "électronique", "pc", "ordinateur", "laptop", "هاتف", "telephone", "téléphone", "chargeur", "شارجور", "cable", "كابل", "usb", "ssd", "ram"]
     }
   ];
 
   const EXTRA_KEYWORDS = {
-    "الأكل": ["موندا", "موندَة", "monda", "munda"],
-    "نظافة شخصية": ["كينطة", "kinta", "kineta"],
-    "التجول": ["بحر", "البحر", "شاطئ", "plage", "beach", "mer"],
-    "أجهزة إلكترونية": ["الكترونيك", "إلكترونيك", "electronique", "électronique", "electronic"]
+    "الأكل": ["موندا", "موندَة", "monda", "munda", "مندا"],
+    "نظافة شخصية": ["كينطة", "قينطة", "kinta", "kineta", "quenta"],
+    "التجول": ["بحر", "البحر", "شاطئ", "plage", "beach", "mer", "خرجة", "خروج"],
+    "أجهزة إلكترونية": ["الكترونيك", "إلكترونيك", "electronique", "électronique", "electronic", "electronics"]
   };
 
   function normalize(value) {
     if (typeof normalizeForMatch === "function") return normalizeForMatch(value);
-    return String(value || "").toLowerCase().trim();
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[أإآٱ]/g, "ا")
+      .replace(/ة/g, "ه")
+      .replace(/ى/g, "ي")
+      .replace(/ؤ/g, "و")
+      .replace(/ئ/g, "ي")
+      .replace(/[ًٌٍَُِّْـ]/g, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function addUnique(array, values) {
@@ -43,13 +55,17 @@
   }
 
   function extendCategories() {
-    if (typeof CATEGORY_DEFINITIONS === "undefined" || typeof CATEGORY_NAMES === "undefined" || typeof CATEGORY_BY_NAME === "undefined") return;
+    if (typeof CATEGORY_DEFINITIONS === "undefined" || typeof CATEGORY_NAMES === "undefined" || typeof CATEGORY_BY_NAME === "undefined") return false;
 
     EXTRA_DEFINITIONS.forEach(function (definition) {
       if (!CATEGORY_BY_NAME[definition.name]) {
-        CATEGORY_DEFINITIONS.splice(Math.max(CATEGORY_DEFINITIONS.length - 1, 0), 0, definition);
-        CATEGORY_NAMES.splice(Math.max(CATEGORY_NAMES.length - 1, 0), 0, definition.name);
+        const insertAt = CATEGORY_NAMES.includes("أخرى") ? CATEGORY_NAMES.indexOf("أخرى") : CATEGORY_DEFINITIONS.length;
+        CATEGORY_DEFINITIONS.splice(insertAt, 0, definition);
+        CATEGORY_NAMES.splice(insertAt, 0, definition.name);
         CATEGORY_BY_NAME[definition.name] = definition;
+      } else {
+        addUnique(CATEGORY_BY_NAME[definition.name].keywords, definition.keywords || []);
+        addUnique(CATEGORY_BY_NAME[definition.name].legacy, definition.legacy || []);
       }
     });
 
@@ -66,8 +82,22 @@
     }
 
     if (typeof state !== "undefined" && state.settings) {
-      // Force a safe recategorization on next init without deleting any transaction.
       state.settings.categoryMigrationVersion = 0;
+    }
+
+    return true;
+  }
+
+  function refreshApp() {
+    try {
+      extendCategories();
+      if (typeof migrateStateWithoutDeletingArchive === "function") migrateStateWithoutDeletingArchive(true);
+      if (typeof persist === "function") persist();
+      if (typeof refreshCategoryControls === "function") refreshCategoryControls();
+      if (typeof renderFixedCategories === "function") renderFixedCategories();
+      if (typeof render === "function") render();
+    } catch (error) {
+      console.warn("Category extension refresh failed", error);
     }
   }
 
@@ -76,4 +106,9 @@
   } catch (error) {
     console.warn("Category extension skipped", error);
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(refreshApp, 100);
+    setTimeout(refreshApp, 800);
+  });
 })();
